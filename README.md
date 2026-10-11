@@ -8,6 +8,8 @@
 
 ## Group Members
 
+| Full Name | GitHub Username | Email | School Number |
+| --- | --- | --- | --- |
 | Delfin Kütükcü | @delfin-kutukcu | dkutukcu@etu.edu.tr | 231101016 |
 | Işıkalp Karakaş | @isikalp1 | ikarakas@etu.edu.tr | 231101067 |
 | Nildeniz Efe | @nlideniz | nefe@etu.edu.tr | 241101079 |
