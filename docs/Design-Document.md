@@ -38,7 +38,7 @@
 ## 3. Use Case Support in Design
 
 ### 3.1 Use Case 1: Interact in Library
-*(Işıkalp'in az önce hazırladığımız Observer Pattern UML kodu ve açıklaması buraya yapıştırılacak)*
+*(Işıkalp'in hazırlayacağı State Pattern UML kısmı buraya gelecek)*
 
 ### 3.2 Use Case 2: Manage Study Timer
 *(Işıkalp'in hazırlayacağı State Pattern UML kısmı buraya gelecek)*
