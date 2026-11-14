@@ -43,7 +43,7 @@
   This use case directly supports **FR-3** (Real-time synchronization of user actions) and **FR-4** (Visible library presence and interactions) from    our Requirements Document.
   
   **UML Class Diagram:**
-  <img src="images/uc1_UML.png" alt="Use Case 1 Observer Pattern UML" width="300">
+  <img src="images/uc1_UML.png" alt="Use Case 1 Observer Pattern UML" width="250">
 
   **Design Pattern & Justification: Observer Pattern**
   
@@ -56,7 +56,7 @@ In this design, LibraryRoom acts as the Concrete Subject. It maintains a dynamic
 This use case directly supports **FR-5** (Study session time tracking) and **FR-6** (Timer state controls: start, pause, resume, stop) from our Requirements Document.
 
 **UML Class Diagram:**
-<img src="images/uc2_UML.png" alt="Use Case 2 State Pattern UML" width="650">
+<img src="images/uc2-UML.png" alt="Use Case 2 State Pattern UML" width="420">
 
 **Design Pattern & Justification: State Pattern**
 We selected the **State Pattern** to manage the complex lifecycle and transition logic of the study timer. Initially, we considered applying the Strategy Pattern for this component. However, through architectural trade-off analysis, we concluded that while the Strategy Pattern is ideal for interchanging algorithms, our timer is fundamentally governed by strict behavioral boundaries and statuses (States: *Idle*, *Running*, *Paused*). For instance, an already running timer cannot be started again, and a paused timer cannot be paused twice.
