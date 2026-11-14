@@ -109,7 +109,73 @@ The purchase runs as a single database transaction, so the point deduction and t
 **Example (from FR-10 verification):** A user with 500 points buys a 300-point Tier-2 desk and has 200 points left. With 100 points, the same purchase is rejected and nothing changes.
 
 ### 3.4 Use Case 4: Calculate Points & Unlock Tiers
-*(Delfin'in hazırlayacağı Strategy Pattern UML kısmı buraya gelecek)*
+
+**Requirement Mapping:**
+This use case directly supports **FR-8** (award 5 points per active minute for finished sessions of at least 15 minutes and update the user's points and lifetime points) and **FR-9** (unlock furniture tiers by lifetime points: Tier 1 = 0, Tier 2 = 200, Tier 3 = 1000, Tier 4 = 3000). It takes its input from **FR-6** and **FR-7** (the active duration excludes manual and automatic pauses) and stores its result in the session record of **FR-16**, which is saved even when no points are earned. The earned points are spent in the virtual store (**FR-10**, Use Case 3). The calculation runs on the server, which keeps the authoritative timer state (**NFR-2**), and the points and tier logic is covered by automated unit tests (**NFR-8**).
+
+**Use Case Description:**
+
+| Field | Description |
+| :--- | :--- |
+| Primary actor | System (StudyLoft) |
+| Trigger | The user finishes a study session (Use Case 2, Manage Study Timer) |
+| Preconditions | The user is logged in; the session is finished and its active duration has been computed by the server |
+| Main flow | 1. The server computes the active duration (elapsed time minus paused time). 2. `PointService` passes the session to the active strategy. 3. The strategy returns the earned points (5 × active minutes if at least 15 minutes). 4. Points and lifetime points are increased. 5. `TierPolicy` recomputes the tier; if a new tier is reached, it is unlocked. 6. The session is saved and the user sees the earned points and the current tier. |
+| Alternative flow | 3a. Active duration is below 15 minutes: 0 points are earned, balances and tier do not change, and the session record is still saved. |
+| Postconditions | The session is stored with its earned points; the user's balances and tier are consistent |
+
+**UML Class Diagram:**
+<img src="images/uc4_UML.png" alt="Use Case 4 Strategy Pattern UML" width="700">
+
+**Design Pattern & Justification: Strategy Pattern**
+
+The central question of this use case is *which rule turns a finished session into points*. Today the rule is FR-8, but it is the part of the system most likely to change: our risk analysis (R4, Project Definition Document) already lists a daily point cap as a possible anti-cheat measure, and thresholds may be tuned after user testing. If all rules were written as `if-else` branches inside one method, every change would modify tested business logic.
+
+We therefore selected the **Strategy Pattern**. `PointCalculationStrategy` is the common interface with one method, `calculatePoints(session, pointsEarnedToday)`. `StandardPointStrategy` implements the FR-8 rule and is the active strategy used in the demo. `DailyCapPointStrategy` wraps another strategy and limits the total points per day; it is prepared as a ready mitigation for risk R4 but is **disabled by default**, so the FR-8 verification (30 minutes → 150 points) is unchanged. `PointService` is the **Context**: it calls only the interface and never knows which concrete rule is active. A strategy can be swapped with `setStrategy()`, and a new rule can be added as one new class without touching `PointService`, following the Open/Closed Principle. Each strategy can also be unit tested on its own.
+
+In Use Case 2 and Use Case 3 the Strategy Pattern was considered and rejected, because those problems are about *legal state transitions* and *which object to create*. Here the problem is exactly *which algorithm to run*, so Strategy is the right fit. The design also refines the `calculatePointsAndReward` pseudocode from our Concept Notes into replaceable components.
+
+Tier calculation is kept in a separate `TierPolicy` class (Single Responsibility Principle): calculating points and deciding tiers are different concerns. The tier is **derived from lifetime points instead of being stored**, so it can never become inconsistent with the points. Because purchases (Use Case 3) lower only the spendable points and never the lifetime points, a user's tier never drops after buying an item.
+
+**Point Calculation Flow (data flow and state changes):**
+1. The user clicks *Finish Session*. The client sends `finish()` to the server over Socket.io; the client never sends a duration or point value (anti-cheat, R4).
+2. `StudyTimer` (Use Case 2) computes the active duration as elapsed time minus paused time and calls `PointService.awardPoints(user, session)`.
+3. `PointService` reads the current tier from `TierPolicy`, then asks the active strategy for the earned points.
+4. **At least 15 active minutes:** the strategy returns `minutes × 5`, and `User.addPoints(earned)` increases both `points` and `lifetimePoints`.
+5. **Below 15 active minutes:** the strategy returns 0 and the balances do not change.
+6. `PointService` reads the tier again; if it is higher than before, `tierUnlocked` is set in the returned `PointResult`.
+7. The session (with `pointsEarned`) and the updated balances are saved to PostgreSQL, and the client shows the result (for example "+150 points" or "Tier 2 unlocked!").
+
+**UML Sequence Diagram:**
+<img src="images/uc4_sequence.png" alt="Use Case 4 sequence diagram" width="700">
+
+**Tier State Diagram:**
+<img src="images/uc4_state.png" alt="Use Case 4 tier state diagram" width="450">
+
+**Example (from FR-8 and FR-9 verification, Concept Notes Scenario 1):**
+
+| Session | Active time | Points earned | Lifetime points | Tier |
+| :--- | :--- | :--- | :--- | :--- |
+| Start | – | – | 0 | Tier 1 |
+| 1 | 35 min elapsed, 5 min paused → 30 min | 30 × 5 = **150** | 150 | Tier 1 |
+| 2 | 14 min | **0** (below 15 min), session still saved | 150 | Tier 1 |
+| 3 | 15 min | 15 × 5 = **75** | 225 | **Tier 2 unlocked** |
+
+**Implementation and Tests:**
+The implementation is in `server/src/points/` (strategies, `PointService`, `TierPolicy`, `PointResult`) and `server/src/models/` (`User`, `StudySession`). Key interfaces:
+
+```ts
+interface PointCalculationStrategy {
+  calculatePoints(session: StudySession, pointsEarnedToday: number): number;
+}
+
+class PointService {
+  setStrategy(strategy: PointCalculationStrategy): void;
+  awardPoints(user: User, session: StudySession, pointsEarnedToday?: number): PointResult;
+}
+```
+
+`pointsEarnedToday` is optional (default 0) and is only used by `DailyCapPointStrategy`. The 18 Jest unit tests in `server/tests/points/points.test.ts` cover the FR-8 and FR-9 verification cases, the example table above, boundary cases (14 min 59 s → 0 points, exactly 200 lifetime points → Tier 2), the daily cap, and swapping strategies at runtime. They can be run with `npm install` and `npm test` inside the `server/` folder.
 
 ## 4. Design Decisions
 
