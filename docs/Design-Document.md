@@ -40,7 +40,7 @@
 ### 3.1 Use Case 1: Interact in Library
 
   **Requirement Mapping:** 
-  This use case directly supports **FR-3** (Real-time synchronization of user actions) and **FR-4** (Visible library presence and interactions) from    our Requirements Document.
+This use case directly supports **FR-3** (Real-time synchronization of user actions), **FR-4** (Visible library presence and interactions), and **FR-5** (Chat functionality and emoji usage) from our Requirements Document.
   
   **UML Class Diagram:**
   <img src="images/uc1_UML.png" alt="Use Case 1 Observer Pattern UML" width="250">
@@ -53,15 +53,15 @@ In this design, `LibraryRoom` acts as the Concrete Subject. It maintains a dynam
 
 ### 3.2 Use Case 2: Manage Study Timer
 **Requirement Mapping:** 
-This use case directly supports **FR-5** (Study session time tracking) and **FR-6** (Timer state controls: start, pause, resume, stop) from our Requirements Document.
+This use case directly supports **FR-6** (Timer state controls: start, pause, resume, finish, and active time calculation) and **FR-7** (Automatic pause when tab is hidden and paused count tracking) from our Requirements Document.
 
 **UML Class Diagram:**
-<img src="images/uc2-UML.png" alt="Use Case 2 State Pattern UML" width="420">
+<img src="images/uc2-UML.png" alt="Use Case 2 State Pattern UML" width="650">
 
 **Design Pattern & Justification: State Pattern**
 We selected the **State Pattern** to manage the complex lifecycle and transition logic of the study timer. Initially, we considered applying the Strategy Pattern for this component. However, through architectural trade-off analysis, we concluded that while the Strategy Pattern is ideal for interchanging algorithms, our timer is fundamentally governed by strict behavioral boundaries and statuses (States: *Idle*, *Running*, *Paused*). For instance, an already running timer cannot be started again, and a paused timer cannot be paused twice.
 
-By implementing the State Pattern, we avoid fragile and monolithic if-else condition blocks. Instead, we encapsulate state-specific behaviors into individual classes (`IdleState`, `RunningState`, `PausedState`) that all implement the `TimerState` interface. The `StudyTimer` acts as the **Context**, delegating behavior to its `currentState` object. This architecture strictly enforces legal state transitions and demonstrates a precise application of structural design beyond basic algorithmic swaps.
+By implementing the State Pattern, we avoid fragile and monolithic if-else condition blocks. Instead, we encapsulate state-specific behaviors into individual classes (`IdleState`, `RunningState`, `PausedState`) that all implement the `TimerState` interface. The `StudyTimer` acts as the **Context**, delegating behavior to its `currentState` object. This architecture strictly enforces legal state transitions and demonstrates a precise application of structural design beyond basic algorithmic swaps. **Crucially, when the timer transitions to a finished state (e.g., via a `finish()` method), the session data is logged and `PointService.awardPoints(user, session)` is invoked, ensuring seamless integration with the point calculation module (Use Case 4).**
 
 ### 3.3 Use Case 3: Buy Items in Virtual Store
 
