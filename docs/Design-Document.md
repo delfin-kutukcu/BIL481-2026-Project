@@ -146,10 +146,10 @@ class StoreService  {
 // implementations: FurnitureItem, ClothingItem
 
 // UC2 - State
-interface TimerState { start(t: StudyTimer): void; pause(t: StudyTimer): void; resume(t: StudyTimer): void; stop(t: StudyTimer): void; }
+interface TimerState { start(t: StudyTimer): void; pause(t: StudyTimer): void; resume(t: StudyTimer): void; finish(t: StudyTimer): void; }
 class StudyTimer {
   setState(s: TimerState): void;  startTimer(): void;  pauseTimer(): void;
-  resumeTimer(): void;  stopTimer(): void;  getElapsedTime(): number;
+  resumeTimer(): void;  finishTimer(): void;  getActiveDuration(): number;
 }
 // implementations: IdleState, RunningState, PausedState
 
