@@ -40,6 +40,12 @@
 ### 3.1 Use Case 1: Interact in Library
 *(Işıkalp'in hazırlayacağı State Pattern UML kısmı buraya gelecek)*
 
+  **Requirement Mapping:** 
+  This use case directly supports **FR-3** (Real-time synchronization of user actions) and **FR-4** (Visible library presence and interactions) from    our Requirements Document.
+  
+  **UML Class Diagram:**
+  ![Use Case 1 Observer Pattern UML](uc1_UML.png)
+
 ### 3.2 Use Case 2: Manage Study Timer
 *(Işıkalp'in hazırlayacağı State Pattern UML kısmı buraya gelecek)*
 
