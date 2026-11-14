@@ -38,13 +38,18 @@
 ## 3. Use Case Support in Design
 
 ### 3.1 Use Case 1: Interact in Library
-*(Işıkalp'in hazırlayacağı State Pattern UML kısmı buraya gelecek)*
 
   **Requirement Mapping:** 
   This use case directly supports **FR-3** (Real-time synchronization of user actions) and **FR-4** (Visible library presence and interactions) from    our Requirements Document.
   
   **UML Class Diagram:**
-  ![Use Case 1 Observer Pattern UML](uc1_UML.png)
+  <img src="images/uc1_UML.png" alt="Use Case 1 Observer Pattern UML" width="300">
+
+  **Design Pattern & Justification: Observer Pattern**
+  
+We selected the Observer Pattern as the core architectural solution to handle real-time interactions within the virtual library. Based on our requirements, whenever a user performs a specific action (e.g., joins a desk, leaves the room, or sends a chat message), the screens of all other active users in that same room must be updated instantly without requiring manual page refreshes.
+
+In this design, LibraryRoom acts as the Concrete Subject. It maintains a dynamic list of connected UserClient objects, which act as the Observers. Instead of forcing each client to repeatedly request (poll) the server for new data—which would consume excessive bandwidth and cause lag—the LibraryRoom automatically pushes the updated roomState to all attached observers via the notifyObservers() method exactly when a change occurs. This creates a highly scalable, decoupled architecture that perfectly complements a WebSocket-based backend infrastructure for real-time gamified study environments.
 
 ### 3.2 Use Case 2: Manage Study Timer
 *(Işıkalp'in hazırlayacağı State Pattern UML kısmı buraya gelecek)*
