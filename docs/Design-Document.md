@@ -51,7 +51,152 @@ StudyLoft adopts a robust **client-server architecture** optimized for low-laten
 *   **Version Control & CI:** Git, GitHub (branching strategy, pull request reviews, automated tests).
   
 ## 2. Implementation Details
-*(Çınar bu kısmı dolduracak: Codebase Structure, Key Implementations, Component Interfaces, Visual Interfaces)*
+
+### 2.1 Codebase Structure
+
+The repository is organized by area, so each folder shows who maintains what. The server is written in **TypeScript** on Node.js and organized **by feature**: each feature (points, store, library, timer) has its own folder with its classes. The client and the server are separate applications that talk through a REST API (accounts, store, history, dashboard) and a WebSocket connection (library presence, chat, timer).
+
+```text
+BIL481-2026-Project/
+├── server/                          # Node.js + TypeScript backend
+│   ├── package.json, tsconfig.json, jest.config.js
+│   ├── src/
+│   │   ├── models/                  # User.ts, StudySession.ts                  [implemented]
+│   │   ├── points/                  # Strategy Pattern (UC4)                    [implemented]
+│   │   │   ├── PointCalculationStrategy.ts   # strategy interface
+│   │   │   ├── StandardPointStrategy.ts      # FR-8 rule (active strategy)
+│   │   │   ├── DailyCapPointStrategy.ts      # optional daily cap (risk R4)
+│   │   │   ├── PointService.ts               # context
+│   │   │   ├── TierPolicy.ts                 # lifetime points -> tier (FR-9)
+│   │   │   └── PointResult.ts
+│   │   ├── store/                   # Factory Pattern (UC3): StoreItem, ItemFactory, StoreService   [planned]
+│   │   ├── library/                 # Observer Pattern (UC1): LibraryRoom, seats, chat              [planned]
+│   │   ├── timer/                   # State Pattern (UC2): StudyTimer, Idle/Running/PausedState     [planned]
+│   │   ├── routes/ and sockets/     # REST endpoints and Socket.io handlers                         [planned]
+│   │   └── db/                      # PostgreSQL schema and repositories                            [planned]
+│   └── tests/
+│       └── points/points.test.ts    # 18 Jest unit tests for FR-8 and FR-9      [implemented]
+├── client/                          # React web application                     [planned]
+│   └── src/                         # pages (Library, Store, Apartment, Dashboard), components, hooks, services
+└── docs/                            # Project documents, UML diagrams, wireframes (docs/images/)
+```
+
+The server follows a **layered architecture**: routes and socket handlers (presentation) call services (business logic), and services call repositories (data access) that talk to PostgreSQL. The business classes of the four use cases do not depend on the database or on Socket.io, so they can be unit tested on their own.
+
+*Current status:* the points and tier module (Use Case 4) with its models and tests is already implemented in `server/`. The store, library, and timer modules, the REST and WebSocket layer, the database, and the client follow the interfaces defined in this document.
+
+### 2.2 Key Implementations
+
+| Module | Responsibility | Related requirements | Pattern | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| Points and tiers | Converts a finished session into points and derives the tier from lifetime points. | FR-8, FR-9 | Strategy (UC4) | Implemented, tested |
+| Models | `User` (points, lifetime points, tier) and `StudySession` (active duration, paused count, points earned). | FR-8, FR-9, FR-16 | - | Implemented |
+| Study timer | Controls the lifecycle Idle, Running, Paused. The server keeps the authoritative timer state; the client sends the controls and an automatic pause when the browser tab is hidden. | FR-6, FR-7, FR-15 | State (UC2) | Planned |
+| Library and presence | Keeps the list of users and seats in the shared library and pushes every change (join, leave, sit, chat, status) to all connected clients. | FR-3, FR-4, FR-5 | Observer (UC1) | Planned |
+| Store and inventory | Lists items, checks tier and points, deducts the cost, and adds the item to the inventory in one database transaction. | FR-10, FR-9 | Factory (UC3) | Planned |
+| Session history, apartment layout, dashboard | Store finished sessions, save the apartment layout, produce weekly chart, leaderboard, and habit report with an optional Gemini insight. | FR-16, FR-11, FR-12, FR-13, FR-14 | - | Planned |
+| Authentication | Registration, login, logout, salted password hashes, authenticated WebSocket connections. | FR-1, NFR-3 | - | Planned |
+
+**Core business logic**
+
+- **Active study time.** The server counts only the time spent in the Running state: active duration = elapsed time minus paused time. Every automatic pause increases `pausedCount` by 1. The client never sends a duration or a point value (anti-cheat, risk R4).
+- **Points (FR-8).** `StandardPointStrategy` rounds the active duration down to whole minutes. A session of at least 15 minutes gives `5 × minutes` points; a shorter session gives 0 points, but the session record is still saved (14 min 59 s counts as 14 minutes).
+- **Tiers (FR-9).** `TierPolicy` derives the tier from lifetime points with the thresholds `[0, 200, 1000, 3000]` (Tier 1 to Tier 4). The tier is calculated, not stored, so it cannot become inconsistent. Spending points lowers only `points`, never `lifetimePoints`, so the tier never drops after a purchase.
+- **Award flow.** `PointService.awardPoints()` reads the old tier, asks the active strategy for the earned points, adds them to the user, stores them in the session, reads the new tier, and returns a `PointResult` with the new balance and `tierUnlocked`.
+- **Purchase (FR-10).** A purchase is accepted only if the item exists, is not owned yet, its tier is unlocked, and `points >= cost`. Otherwise nothing changes and an error message is returned.
+- **Reconnection (FR-15).** If the WebSocket drops, the client reconnects with exponential backoff and the server restores the user's seat, status, and timer state.
+
+### 2.3 Component Interfaces
+
+**Class and method signatures.** The points module and the models are taken from the implemented code in `server/src/`; the other modules follow the UML diagrams in Section 3.
+
+```ts
+// ---- Implemented: server/src/points and server/src/models (UC4) ----
+interface PointCalculationStrategy {
+  calculatePoints(session: StudySession, pointsEarnedToday: number): number;
+}
+class StandardPointStrategy implements PointCalculationStrategy { /* FR-8 rule */ }
+class DailyCapPointStrategy implements PointCalculationStrategy {
+  constructor(base: PointCalculationStrategy, dailyCap: number);
+}
+class PointService {
+  setStrategy(strategy: PointCalculationStrategy): void;
+  awardPoints(user: User, session: StudySession, pointsEarnedToday?: number): PointResult;
+}
+class TierPolicy { getTier(lifetimePoints: number): number; }
+interface PointResult { earnedPoints: number; newBalance: number; newTier: number; tierUnlocked: boolean; }
+
+class User {
+  addPoints(amount: number): void;      // increases points and lifetimePoints
+  deductPoints(cost: number): void;     // decreases points only; throws if not enough points
+  getPoints(): number;  getLifetimePoints(): number;  getTier(): number;
+}
+class StudySession {                    // userId, sessionId, activeDurationSec, date, pausedCount, pointsEarned
+  getActiveMinutes(): number;           // whole minutes, rounded down
+}
+
+// ---- Planned: follows the UML diagrams in Section 3 ----
+// UC3 - Factory
+interface StoreItem { getId(): number; getName(): string; getCost(): number; getTier(): number; }
+class ItemFactory   { createItem(type: string, data: ItemData): StoreItem; }
+class StoreService  {
+  listItems(): StoreItem[];
+  buyItem(userId: number, itemId: number): PurchaseResult;
+}
+// implementations: FurnitureItem, ClothingItem
+
+// UC2 - State
+interface TimerState { start(t: StudyTimer): void; pause(t: StudyTimer): void; resume(t: StudyTimer): void; stop(t: StudyTimer): void; }
+class StudyTimer {
+  setState(s: TimerState): void;  startTimer(): void;  pauseTimer(): void;
+  resumeTimer(): void;  stopTimer(): void;  getElapsedTime(): number;
+}
+// implementations: IdleState, RunningState, PausedState
+
+// UC1 - Observer
+interface RoomSubject  { attach(obs: RoomObserver): void; detach(obs: RoomObserver): void; notifyObservers(): void; }
+interface RoomObserver { update(roomState: object): void; }
+class LibraryRoom implements RoomSubject {
+  joinRoom(u: User): void;  leaveRoom(u: User): void;  receiveMessage(m: Message): void;
+}
+```
+
+**REST API endpoints** (all except register and login require an authenticated session)
+
+| Method | Endpoint | Description | Requirement |
+| :--- | :--- | :--- | :--- |
+| POST | `/api/auth/register` | Create an account (unique username and e-mail) | FR-1 |
+| POST | `/api/auth/login` | Log in, start a session | FR-1 |
+| POST | `/api/auth/logout` | End the session | FR-1 |
+| GET | `/api/store/items` | List store items (name, cost, tier) | FR-10 |
+| POST | `/api/store/buy` | Buy an item. Body: `{ itemId }`. Returns new balance and inventory, or an error | FR-10 |
+| GET | `/api/inventory` | List owned items | FR-10 |
+| PUT | `/api/avatar/outfit` | Equip an owned clothing item | FR-2 |
+| GET / PUT | `/api/apartment/layout` | Load / save the apartment layout | FR-11 |
+| GET | `/api/sessions` | Session history of the user | FR-16 |
+| GET | `/api/dashboard/weekly` | Daily study hours of the current week | FR-12 |
+| GET | `/api/leaderboard` | Weekly ranking by study time | FR-13 |
+| GET | `/api/report/weekly` | Habit report and optional insight | FR-14 |
+
+**WebSocket events** (Socket.io, authenticated connection). Finished sessions are saved by the server when it receives `timer:finish`, so there is no REST endpoint for saving a session.
+
+| Direction | Event | Payload / meaning | Requirement |
+| :--- | :--- | :--- | :--- |
+| Client to server | `library:join`, `library:leave` | Enter or leave the library | FR-3 |
+| Client to server | `seat:take` | `{ seatId }`; rejected if occupied | FR-4 |
+| Client to server | `chat:message`, `chat:emoji` | Text (max 140 characters) or emoji reaction | FR-5 |
+| Client to server | `timer:start`, `timer:pause`, `timer:resume` | Timer controls | FR-6 |
+| Client to server | `timer:finish` | Finishes the session; the server computes the duration, awards points (`PointService.awardPoints`), and saves the session | FR-6, FR-8, FR-16 |
+| Client to server | `timer:autoPause` | Sent when the tab is hidden; increases `pausedCount` | FR-7 |
+| Server to client | `room:state` | Full room state (users, seats, statuses), pushed to every observer | FR-3 |
+| Server to client | `chat:new` | New chat bubble to show | FR-5 |
+| Server to client | `timer:state` | Current timer state and elapsed time (also sent after reconnect) | FR-15 |
+| Server to client | `session:result` | `PointResult`: earned points, new balance, new tier, `tierUnlocked` | FR-8, FR-9 |
+
+### 2.4 Visual Interfaces
+
+*(Wireframes will be added here: library, timer, store, apartment decorator, dashboard.)*
+
 
 ## 3. Use Case Support in Design
 
