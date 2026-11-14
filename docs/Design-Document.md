@@ -17,7 +17,7 @@
 | **3.1 Use Case 1: Interact in Library** (Observer Pattern & UML) | Işıkalp Karakaş |
 | **3.2 Use Case 2: Manage Study Timer** (State Pattern & UML) | Işıkalp Karakaş |
 | **3.3 Use Case 3: Buy Items in Store** (Factory Pattern & UML) | Çınar Aktaş |
-| **3.4 Use Case 4: Calculate Points** (Strategy Pattern & UML) | Delfin Kütükçü |
+| **3.4 Use Case 4: Calculate Points & Unlock Tiers** (Strategy Pattern & UML) | Delfin Kütükçü |
 | **4. Design Decisions** (Tech Comparisons & Justifications) | Nildeniz Efe |
 
 ## Contributors
