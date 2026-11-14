@@ -64,7 +64,31 @@ We selected the **State Pattern** to manage the complex lifecycle and transition
 By implementing the State Pattern, we avoid fragile and monolithic if-else condition blocks. Instead, we encapsulate state-specific behaviors into individual classes (`IdleState`, `RunningState`, `PausedState`) that all implement the `TimerState` interface. The `StudyTimer` acts as the **Context**, delegating behavior to its `currentState` object. This architecture strictly enforces legal state transitions and demonstrates a precise application of structural design beyond basic algorithmic swaps.
 
 ### 3.3 Use Case 3: Buy Items in Virtual Store
-*(Çınar'ın hazırlayacağı Factory Pattern UML kısmı buraya gelecek)*
+
+**Requirement Mapping:**
+This use case directly supports **FR-10** (browse the store and buy an item whose tier is unlocked and whose cost does not exceed the user's points). It depends on **FR-9** (furniture tiers unlocked by lifetime points) for the tier check, and its result feeds **FR-2** (equipping owned clothing) and **FR-11** (placing owned furniture in the apartment).
+
+**UML Class Diagram:**
+<img src="images/uc3_UML.png" alt="Use Case 3 Factory Pattern UML" width="600">
+
+**Design Pattern & Justification: Factory Pattern**
+The virtual store sells two kinds of products, furniture and clothing. They share a name, a cost, and a tier, but they differ in their own data: furniture has a size on the apartment grid, and clothing has an avatar slot. If the store code created these objects directly with `new FurnitureItem(...)` and `new ClothingItem(...)`, every new product type would force changes in the purchase logic.
+
+We therefore selected the **Factory Pattern**. All products implement the common `StoreItem` interface (`getId()`, `getName()`, `getCost()`, `getTier()`). The `ItemFactory` class has one method, `createItem(type, data)`, which reads the item type from the database record and returns the matching `FurnitureItem` or `ClothingItem`. `StoreService` works only with the `StoreItem` interface and never needs to know the concrete class. A new product type (for example wallpaper) can be added by creating one new class and one new branch in the factory, without touching `StoreService`. This follows the Open/Closed Principle. We considered the Strategy Pattern, but the problem here is *which object to create*, not *which algorithm to run*, so Factory is the better fit.
+
+**Purchase Flow (data flow and state changes):**
+1. The user opens the store. `StoreService.listItems()` loads item records, and `ItemFactory` turns each record into a `StoreItem` (name, cost, tier).
+2. The user selects an item and presses *Buy*. The client sends `POST /api/store/buy` with `{ itemId }`. The user is identified by the authenticated session.
+3. `StoreService.buyItem(userId, itemId)` checks three conditions in `canPurchase()`:
+   - the item exists and is not already owned (`Inventory.owns()`),
+   - the item tier is not higher than the user's tier (`User.getTier()`, based on lifetime points, FR-9),
+   - the user has enough points (`points >= cost`).
+4. **Success:** `User.deductPoints(cost)` lowers the balance, `Inventory.add(item)` stores the item, and the server returns the new balance and inventory.
+5. **Failure:** the server returns an error message (tier locked or not enough points). Points and inventory do not change.
+
+The purchase runs as a single database transaction, so the point deduction and the inventory update happen together or not at all. The user's lifetime points do not change when buying, so the tier never drops after a purchase.
+
+**Example (from FR-10 verification):** A user with 500 points buys a 300-point Tier-2 desk and has 200 points left. With 100 points, the same purchase is rejected and nothing changes.
 
 ### 3.4 Use Case 4: Calculate Points & Unlock Tiers
 *(Delfin'in hazırlayacağı Strategy Pattern UML kısmı buraya gelecek)*
