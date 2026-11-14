@@ -151,6 +151,7 @@ Tier calculation is kept in a separate `TierPolicy` class (Single Responsibility
 
 **Tier State Diagram:**
 <img src="images/uc4_state.png" alt="Use Case 4 tier state diagram" width="450">
+
 **Example (from FR-8 and FR-9 verification, Concept Notes Scenario 1):**
 
 | Session | Active time | Points earned | Lifetime points | Tier |
