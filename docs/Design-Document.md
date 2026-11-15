@@ -254,7 +254,7 @@ The server keeps the authoritative timer state; the client only sends control ev
 
 **Timer State Diagram:**
 
-
+<img src="images/uc2_state.png" alt="Use Case 2 timer state diagram" width="350">
 
 
 ### 3.3 Use Case 3: Buy Items in Virtual Store
