@@ -161,6 +161,35 @@ class LibraryRoom implements RoomSubject {
 }
 ```
 
+### 2.4 Visual Interfaces
+
+The wireframes below are low-fidelity drafts of the five main screens. They show the layout and the controls of each screen; colors, final images, and styling will be defined during the frontend implementation. Small blue tags in the images show the functional requirement that each area supports. All screens use the same top bar with the navigation (Library, Store, Apartment, Dashboard) and the user's current points and tier.
+
+**Library screen (Use Case 1 and Use Case 2: FR-3, FR-4, FR-5, FR-6, FR-7, FR-15)**
+The library is shown as a grid of six tables with four seats each. Empty seats are dashed circles; occupied seats show the avatar, the user name, and the status (STUDYING, IDLE (PAUSED), AVAILABLE). Chat bubbles appear above the sender's avatar. The right column contains the study timer and the chat panel (text up to 140 characters and emoji reactions, no voice or video). A banner informs the user while the connection is being restored.
+
+<img src="images/wf_library.png" alt="Wireframe: library screen" width="900">
+
+**Study timer states and session result (Use Case 2 and Use Case 4: FR-6, FR-7, FR-8, FR-9, FR-16)**
+Each timer state enables only the legal actions (State Pattern): Idle allows only Start, Running allows Pause and Finish, Paused allows Resume and Finish. When a session is finished, a result dialog shows the active time, the number of pauses, the earned points, and a message if a new tier was unlocked. A session shorter than 15 active minutes shows 0 points, and the session is still saved.
+
+<img src="images/wf_timer.png" alt="Wireframe: timer states and session result" width="900">
+
+**Store screen (Use Case 3: FR-9, FR-10)**
+The store lists furniture and clothing items with name, tier, and cost, and can be filtered by category. Each item card has one of four states: Buy (enabled), Owned, locked by tier, or not enough points. A progress bar shows the current tier and the lifetime points needed for the next tier. After a purchase, a message confirms the result (success or rejection), and the points in the top bar are updated.
+
+<img src="images/wf_store.png" alt="Wireframe: store screen" width="900">
+
+**Apartment decorator (FR-11, FR-2)**
+The left panel lists the items the user owns. Items are dragged onto the apartment grid, moved, or removed; items the user does not own cannot be placed. The *Save layout* button stores the layout so that it is restored at the next login.
+
+<img src="images/wf_apartment.png" alt="Wireframe: apartment decorator" width="900">
+
+**Dashboard (FR-12, FR-13, FR-14, FR-16)**
+The dashboard shows the weekly habit report (total hours, sessions, average session length, longest streak) with an optional AI insight, a bar chart of the daily study hours, the weekly leaderboard with the current user highlighted, and the session history. If the Gemini API is unavailable, the insight box is hidden and the rest of the page is shown normally.
+
+<img src="images/wf_dashboard.png" alt="Wireframe: dashboard" width="900">
+
 **REST API endpoints** (all except register and login require an authenticated session)
 
 | Method | Endpoint | Description | Requirement |
