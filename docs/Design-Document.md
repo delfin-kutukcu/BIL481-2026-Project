@@ -206,6 +206,7 @@ class LibraryRoom implements RoomSubject {
 This use case directly supports **FR-3** (library grid, seat occupancy, and avatar statuses), **FR-4** (taking an empty seat; occupied seats cannot be selected), and **FR-5** (chat functionality and emoji usage) from our Requirements Document.
   
 **UML Class Diagram:**
+
 <img src="images/uc1_UML.png" alt="Use Case 1 Observer Pattern UML" width="250">
 
 **Design Pattern & Justification: Observer Pattern**
