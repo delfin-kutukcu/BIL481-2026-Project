@@ -220,6 +220,7 @@ In this design, `LibraryRoom` acts as the Concrete Subject. It maintains a dynam
 This use case directly supports **FR-6** (Timer state controls: start, pause, resume, finish, and active time calculation) and **FR-7** (Automatic pause when tab is hidden and paused count tracking) from our Requirements Document.
 
 **UML Class Diagram:**
+
 <img src="images/uc2_UML.png" alt="Use Case 2 State Pattern UML" width="420">
 
 **Design Pattern & Justification: State Pattern**
@@ -233,6 +234,7 @@ By implementing the State Pattern, we avoid fragile and monolithic if-else condi
 This use case directly supports **FR-10** (browse the store and buy an item whose tier is unlocked and whose cost does not exceed the user's points). It depends on **FR-9** (furniture tiers unlocked by lifetime points) for the tier check, and its result feeds **FR-2** (equipping owned clothing) and **FR-11** (placing owned furniture in the apartment).
 
 **UML Class Diagram:**
+
 <img src="images/uc3_UML.png" alt="Use Case 3 Factory Pattern UML" width="600">
 
 **Design Pattern & Justification: Factory Pattern**
@@ -271,6 +273,7 @@ This use case directly supports **FR-8** (award 5 points per active minute for f
 | Postconditions | The session is stored with its earned points; the user's balances and tier are consistent |
 
 **UML Class Diagram:**
+
 <img src="images/uc4_UML.png" alt="Use Case 4 Strategy Pattern UML" width="700">
 
 **Design Pattern & Justification: Strategy Pattern**
@@ -293,9 +296,11 @@ Tier calculation is kept in a separate `TierPolicy` class (Single Responsibility
 7. The session (with `pointsEarned`) and the updated balances are saved to PostgreSQL, and the client shows the result (for example "+150 points" or "Tier 2 unlocked!"). The result is sent back with the session:result event.
 
 **UML Sequence Diagram:**
+
 <img src="images/uc4_sequence.png" alt="Use Case 4 sequence diagram" width="700">
 
 **Tier State Diagram:**
+
 <img src="images/uc4_state.png" alt="Use Case 4 tier state diagram" width="450">
 
 **Example (from FR-8 and FR-9 verification, Concept Notes Scenario 1):**
