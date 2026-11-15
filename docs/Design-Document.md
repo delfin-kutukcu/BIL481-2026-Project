@@ -222,9 +222,6 @@ The dashboard shows the weekly habit report (total hours, sessions, average sess
 | Server to client | `timer:state` | Current timer state and elapsed time (also sent after reconnect) | FR-15 |
 | Server to client | `session:result` | `PointResult`: earned points, new balance, new tier, `tierUnlocked` | FR-8, FR-9 |
 
-### 2.4 Visual Interfaces
-
-*(Wireframes will be added here: library, timer, store, apartment decorator, dashboard.)*
 
 
 ## 3. Use Case Support in Design
