@@ -161,35 +161,6 @@ class LibraryRoom implements RoomSubject {
 }
 ```
 
-### 2.4 Visual Interfaces
-
-The wireframes below are low-fidelity drafts of the five main screens. They show the layout and the controls of each screen; colors, final images, and styling will be defined during the frontend implementation. Small blue tags in the images show the functional requirement that each area supports. All screens use the same top bar with the navigation (Library, Store, Apartment, Dashboard) and the user's current points and tier.
-
-**Library screen (Use Case 1 and Use Case 2: FR-3, FR-4, FR-5, FR-6, FR-7, FR-15)**
-The library is shown as a grid of six tables with four seats each. Empty seats are dashed circles; occupied seats show the avatar, the user name, and the status (STUDYING, IDLE (PAUSED), AVAILABLE). Chat bubbles appear above the sender's avatar. The right column contains the study timer and the chat panel (text up to 140 characters and emoji reactions, no voice or video). A banner informs the user while the connection is being restored.
-
-<img src="images/wf_library.png" alt="Wireframe: library screen" width="900">
-
-**Study timer states and session result (Use Case 2 and Use Case 4: FR-6, FR-7, FR-8, FR-9, FR-16)**
-Each timer state enables only the legal actions (State Pattern): Idle allows only Start, Running allows Pause and Finish, Paused allows Resume and Finish. When a session is finished, a result dialog shows the active time, the number of pauses, the earned points, and a message if a new tier was unlocked. A session shorter than 15 active minutes shows 0 points, and the session is still saved.
-
-<img src="images/wf_timer.png" alt="Wireframe: timer states and session result" width="900">
-
-**Store screen (Use Case 3: FR-9, FR-10)**
-The store lists furniture and clothing items with name, tier, and cost, and can be filtered by category. Each item card has one of four states: Buy (enabled), Owned, locked by tier, or not enough points. A progress bar shows the current tier and the lifetime points needed for the next tier. After a purchase, a message confirms the result (success or rejection), and the points in the top bar are updated.
-
-<img src="images/wf_store.png" alt="Wireframe: store screen" width="900">
-
-**Apartment decorator (FR-11, FR-2)**
-The left panel lists the items the user owns. Items are dragged onto the apartment grid, moved, or removed; items the user does not own cannot be placed. The *Save layout* button stores the layout so that it is restored at the next login.
-
-<img src="images/wf_apartment.png" alt="Wireframe: apartment decorator" width="900">
-
-**Dashboard (FR-12, FR-13, FR-14, FR-16)**
-The dashboard shows the weekly habit report (total hours, sessions, average session length, longest streak) with an optional AI insight, a bar chart of the daily study hours, the weekly leaderboard with the current user highlighted, and the session history. If the Gemini API is unavailable, the insight box is hidden and the rest of the page is shown normally.
-
-<img src="images/wf_dashboard.png" alt="Wireframe: dashboard" width="900">
-
 **REST API endpoints** (all except register and login require an authenticated session)
 
 | Method | Endpoint | Description | Requirement |
@@ -222,7 +193,34 @@ The dashboard shows the weekly habit report (total hours, sessions, average sess
 | Server to client | `timer:state` | Current timer state and elapsed time (also sent after reconnect) | FR-15 |
 | Server to client | `session:result` | `PointResult`: earned points, new balance, new tier, `tierUnlocked` | FR-8, FR-9 |
 
+### 2.4 Visual Interfaces
 
+The wireframes below are low-fidelity drafts of the five main screens. They show the layout and the controls of each screen; colors, final images, and styling will be defined during the frontend implementation. Small blue tags in the images show the functional requirement that each area supports. All screens use the same top bar with the navigation (Library, Store, Apartment, Dashboard) and the user's current points and tier.
+
+**Library screen (Use Case 1 and Use Case 2: FR-3, FR-4, FR-5, FR-6, FR-7, FR-15)**
+The library is shown as a grid of six tables with four seats each. Empty seats are dashed circles; occupied seats show the avatar, the user name, and the status (STUDYING, IDLE (PAUSED), AVAILABLE). Chat bubbles appear above the sender's avatar. The right column contains the study timer and the chat panel (text up to 140 characters and emoji reactions, no voice or video). A banner informs the user while the connection is being restored.
+
+<img src="images/wf_library.png" alt="Wireframe: library screen" width="900">
+
+**Study timer states and session result (Use Case 2 and Use Case 4: FR-6, FR-7, FR-8, FR-9, FR-16)**
+Each timer state enables only the legal actions (State Pattern): Idle allows only Start, Running allows Pause and Finish, Paused allows Resume and Finish. When a session is finished, a result dialog shows the active time, the number of pauses, the earned points, and a message if a new tier was unlocked. A session shorter than 15 active minutes shows 0 points, and the session is still saved.
+
+<img src="images/wf_timer.png" alt="Wireframe: timer states and session result" width="900">
+
+**Store screen (Use Case 3: FR-9, FR-10)**
+The store lists furniture and clothing items with name, tier, and cost, and can be filtered by category. Each item card has one of four states: Buy (enabled), Owned, locked by tier, or not enough points. A progress bar shows the current tier and the lifetime points needed for the next tier. After a purchase, a message confirms the result (success or rejection), and the points in the top bar are updated.
+
+<img src="images/wf_store.png" alt="Wireframe: store screen" width="900">
+
+**Apartment decorator (FR-11, FR-2)**
+The left panel lists the items the user owns. Items are dragged onto the apartment grid, moved, or removed; items the user does not own cannot be placed. The *Save layout* button stores the layout so that it is restored at the next login.
+
+<img src="images/wf_apartment.png" alt="Wireframe: apartment decorator" width="900">
+
+**Dashboard (FR-12, FR-13, FR-14, FR-16)**
+The dashboard shows the weekly habit report (total hours, sessions, average session length, longest streak) with an optional AI insight, a bar chart of the daily study hours, the weekly leaderboard with the current user highlighted, and the session history. If the Gemini API is unavailable, the insight box is hidden and the rest of the page is shown normally.
+
+<img src="images/wf_dashboard.png" alt="Wireframe: dashboard" width="900">
 
 ## 3. Use Case Support in Design
 
@@ -348,7 +346,7 @@ Tier calculation is kept in a separate `TierPolicy` class (Single Responsibility
 4. **At least 15 active minutes:** the strategy returns `minutes × 5`, and `User.addPoints(earned)` increases both `points` and `lifetimePoints`.
 5. **Below 15 active minutes:** the strategy returns 0 and the balances do not change.
 6. `PointService` reads the tier again; if it is higher than before, `tierUnlocked` is set in the returned `PointResult`.
-7. The session (with `pointsEarned`) and the updated balances are saved to PostgreSQL, and the client shows the result (for example "+150 points" or "Tier 2 unlocked!"). The result is sent back with the session:result event.
+7. The session (with `pointsEarned`) and the updated balances are saved to PostgreSQL, and the client shows the result (for example "+150 points" or "Tier 2 unlocked!"). The result is sent back with the `session:result` event.
 
 **UML Sequence Diagram:**
 
@@ -392,12 +390,13 @@ To build StudyLoft efficiently and ensure it meets our performance and real-time
     *   *PostgreSQL:* Offers robust relational integrity, structured schemas for user profiles, secure authentication data, item inventories, and transaction safety for point deductions and store purchases.
     *   *MongoDB:* Provides high flexibility for unstructured documents, making it easy to store dynamic JSON objects like apartment floor layouts (`placedItems[]`).
     *   *Decision:* We selected **PostgreSQL** because maintaining strict consistency for user points, tiered item ownership, and secure session history is critical. PostgreSQL also supports JSONB columns, allowing us to store flexible floor layout coordinates without sacrificing relational data integrity.
-* **Code snippets:** [`docs/comparisons/database/postgres-purchase.sql`](comparisons/database/postgres-purchase.sql), [`docs/comparisons/database/mongodb-purchase.js`](comparisons/database/mongodb-purchase.js)
+    *   *Code snippets:* [`docs/comparisons/database/postgres-purchase.sql`](comparisons/database/postgres-purchase.sql), [`docs/comparisons/database/mongodb-purchase.js`](comparisons/database/mongodb-purchase.js)
 *   **Comparison 2: Real-Time Synchronization Protocol — WebSockets (Socket.io) vs. HTTP Short/Long Polling / Server-Sent Events (SSE)**
     *   *HTTP Polling / SSE:* Polling repeatedly opens HTTP connections, causing high server overhead and latency, whereas SSE is strictly unidirectional (server-to-client), which is insufficient for a multiplayer environment where clients must send avatar movements and chat messages.
     *   *WebSockets (Socket.io):* Establishes a persistent, low-latency, bidirectional communication channel. Socket.io specifically adds built-in automatic reconnection logic, fallback mechanisms, and room management.
     *   *Decision:* We selected **WebSockets via Socket.io** to satisfy Requirement NFR-1 (real-time synchronization under 200ms) and to seamlessly handle avatar presence broadcasting, text/emoji chat bubbles, and automatic connection recovery.
-* **Code snippets:** [`docs/comparisons/realtime/socketio-example.js`](comparisons/realtime/socketio-example.js), [`docs/comparisons/realtime/polling-example.js`](comparisons/realtime/polling-example.js)      
+    *   *Code snippets:* [`docs/comparisons/realtime/socketio-example.js`](comparisons/realtime/socketio-example.js), [`docs/comparisons/realtime/polling-example.js`](comparisons/realtime/polling-example.js)
+
 ### 4.2. Decision Justifications
 *   **Frontend Framework (React.js):** Chosen for its component-based architecture, rich ecosystem, and high rendering efficiency, which is essential for managing interactive dashboards, the apartment grid decorator, and real-time UI updates.
 *   **Backend Framework (Node.js & Express.js):** Selected for its non-blocking asynchronous I/O model and native JavaScript synergy with frontend React components, streamlining the development of REST endpoints and real-time event handlers.
