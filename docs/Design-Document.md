@@ -395,14 +395,12 @@ To build StudyLoft efficiently and ensure it meets our performance and real-time
     *   *PostgreSQL:* Offers robust relational integrity, structured schemas for user profiles, secure authentication data, item inventories, and transaction safety for point deductions and store purchases.
     *   *MongoDB:* Provides high flexibility for unstructured documents, making it easy to store dynamic JSON objects like apartment floor layouts (`placedItems[]`).
     *   *Decision:* We selected **PostgreSQL** because maintaining strict consistency for user points, tiered item ownership, and secure session history is critical. PostgreSQL also supports JSONB columns, allowing us to store flexible floor layout coordinates without sacrificing relational data integrity.
-    *   *Code snippets:* [`docs/comparisons/database/`](comparisons/database/) (`postgres-purchase.sql`, `mongodb-purchase.js`)
-
+* **Code snippets:** [`docs/comparisons/database/postgres-purchase.sql`](comparisons/database/postgres-purchase.sql), [`docs/comparisons/database/mongodb-purchase.js`](comparisons/database/mongodb-purchase.js)
 *   **Comparison 2: Real-Time Synchronization Protocol — WebSockets (Socket.io) vs. HTTP Short/Long Polling / Server-Sent Events (SSE)**
     *   *HTTP Polling / SSE:* Polling repeatedly opens HTTP connections, causing high server overhead and latency, whereas SSE is strictly unidirectional (server-to-client), which is insufficient for a multiplayer environment where clients must send avatar movements and chat messages.
     *   *WebSockets (Socket.io):* Establishes a persistent, low-latency, bidirectional communication channel. Socket.io specifically adds built-in automatic reconnection logic, fallback mechanisms, and room management.
     *   *Decision:* We selected **WebSockets via Socket.io** to satisfy Requirement NFR-1 (real-time synchronization under 200ms) and to seamlessly handle avatar presence broadcasting, text/emoji chat bubbles, and automatic connection recovery.
-    *   *Code snippets:* [`docs/comparisons/realtime/`](comparisons/realtime/) (`socketio-example.js`, `polling-example.js`)
-      
+* **Code snippets:** [`docs/comparisons/realtime/socketio-example.js`](comparisons/realtime/socketio-example.js), [`docs/comparisons/realtime/polling-example.js`](comparisons/realtime/polling-example.js)      
 ### 4.2. Decision Justifications
 *   **Frontend Framework (React.js):** Chosen for its component-based architecture, rich ecosystem, and high rendering efficiency, which is essential for managing interactive dashboards, the apartment grid decorator, and real-time UI updates.
 *   **Backend Framework (Node.js & Express.js):** Selected for its non-blocking asynchronous I/O model and native JavaScript synergy with frontend React components, streamlining the development of REST endpoints and real-time event handlers.
