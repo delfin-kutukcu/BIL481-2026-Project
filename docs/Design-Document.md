@@ -1,7 +1,7 @@
 # Design Document
 
 ## Table of Contents
-1. [Task Matrix](#task-matrix)
+1. [Task Matrix](#task-matrix-design-document)
 2. [Contributors](#contributors)
 3. [1. System Overview](#1-system-overview)
 4. [2. Implementation Details](#2-implementation-details)
@@ -284,13 +284,13 @@ In Use Case 2 and Use Case 3 the Strategy Pattern was considered and rejected, b
 Tier calculation is kept in a separate `TierPolicy` class (Single Responsibility Principle): calculating points and deciding tiers are different concerns. The tier is **derived from lifetime points instead of being stored**, so it can never become inconsistent with the points. Because purchases (Use Case 3) lower only the spendable points and never the lifetime points, a user's tier never drops after buying an item.
 
 **Point Calculation Flow (data flow and state changes):**
-1. The user clicks *Finish Session*. The client sends `finish()` to the server over Socket.io; the client never sends a duration or point value (anti-cheat, R4).
-2. `StudyTimer` (Use Case 2) computes the active duration as elapsed time minus paused time and calls `PointService.awardPoints(user, session)`.
+1. The user clicks *Finish Session*. The client sends the `timer:finish` event to the server over Socket.io (Section 2.3); the client never sends a duration or point value (anti-cheat, R4).
+2. The server calls `StudyTimer.finishTimer()` (Use Case 2), which computes the active duration with `getActiveDuration()` (elapsed time minus paused time) and calls `PointService.awardPoints(user, session)`.
 3. `PointService` reads the current tier from `TierPolicy`, then asks the active strategy for the earned points.
 4. **At least 15 active minutes:** the strategy returns `minutes × 5`, and `User.addPoints(earned)` increases both `points` and `lifetimePoints`.
 5. **Below 15 active minutes:** the strategy returns 0 and the balances do not change.
 6. `PointService` reads the tier again; if it is higher than before, `tierUnlocked` is set in the returned `PointResult`.
-7. The session (with `pointsEarned`) and the updated balances are saved to PostgreSQL, and the client shows the result (for example "+150 points" or "Tier 2 unlocked!").
+7. The session (with `pointsEarned`) and the updated balances are saved to PostgreSQL, and the client shows the result (for example "+150 points" or "Tier 2 unlocked!"). The result is sent back with the session:result event.
 
 **UML Sequence Diagram:**
 <img src="images/uc4_sequence.png" alt="Use Case 4 sequence diagram" width="700">
