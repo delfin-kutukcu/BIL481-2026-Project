@@ -215,6 +215,19 @@ We selected the Observer Pattern as the core architectural solution to handle re
 
 In this design, `LibraryRoom` acts as the Concrete Subject. It maintains a dynamic list of connected `UserClient` objects, which act as the Observers. Instead of forcing each client to repeatedly request (poll) the server for new data—which would consume excessive bandwidth and cause lag—the `LibraryRoom` automatically pushes the updated `roomState` to all attached observers via the `notifyObservers()` method exactly when a change occurs. This creates a highly scalable, decoupled architecture that perfectly complements a WebSocket-based backend infrastructure for real-time gamified study environments.
 
+**Interaction Flow (data flow and state changes):**
+1. The user opens the library. The client sends `library:join` over the authenticated Socket.io connection. `LibraryRoom.joinRoom(user)` adds the user to `activeUsers` and attaches the client as an observer.
+2. `LibraryRoom` calls `notifyObservers()`, and the server pushes `room:state` (users, seats, statuses) to every connected client. Each `UserClient.update(roomState)` re-renders the grid (FR-3).
+3. **Taking a seat (FR-4):** the client sends `seat:take` with `{ seatId }`.
+   - **Seat empty:** the seat is marked occupied by the user, the avatar is shown on the seat with the status AVAILABLE, and the new `room:state` is pushed to all observers.
+   - **Seat occupied:** the request is rejected and the room state does not change.
+4. **Chat (FR-5):** the client sends `chat:message` (text) or `chat:emoji`. `LibraryRoom.receiveMessage(m)` handles it.
+   - **Text of at most 140 characters, or an emoji:** the server pushes `chat:new` to all observers, and each client shows a chat bubble above the sender's avatar.
+   - **Text longer than 140 characters:** the message is rejected and nothing is broadcast.
+5. The user leaves the library. The client sends `library:leave`; `LibraryRoom.leaveRoom(user)` removes the user and detaches the observer. The user's seat becomes empty, and the updated `room:state` is pushed to the remaining clients.
+
+**State changes:** a seat changes between *empty* and *occupied*; the room's user list changes on join and leave. The status of a seated avatar follows the study timer (Use Case 2): AVAILABLE while the timer is idle, STUDYING while it is running, and IDLE (PAUSED) while it is paused. Every change is followed by one `room:state` push, so all clients show the same room without polling.
+
 ### 3.2 Use Case 2: Manage Study Timer
 
 **Requirement Mapping:** 
@@ -228,6 +241,21 @@ This use case directly supports **FR-6** (Timer state controls: start, pause, re
 We selected the **State Pattern** to manage the complex lifecycle and transition logic of the study timer. Initially, we considered applying the Strategy Pattern for this component. However, through architectural trade-off analysis, we concluded that while the Strategy Pattern is ideal for interchanging algorithms, our timer is fundamentally governed by strict behavioral boundaries and statuses (States: *Idle*, *Running*, *Paused*). For instance, an already running timer cannot be started again, and a paused timer cannot be paused twice.
 
 By implementing the State Pattern, we avoid fragile and monolithic if-else condition blocks. Instead, we encapsulate state-specific behaviors into individual classes (`IdleState`, `RunningState`, `PausedState`) that all implement the `TimerState` interface. The `StudyTimer` acts as the **Context**, delegating behavior to its `currentState` object. This architecture strictly enforces legal state transitions and demonstrates a precise application of structural design beyond basic algorithmic swaps. Crucially, when the timer transitions to a finished state (e.g., via a `finishTimer()` method), the session data is logged, active duration is computed (`getActiveDuration()`), and `PointService.awardPoints(user, session)` is invoked for every finished session; the 15-minute threshold of **FR-8** is checked inside the point strategy (Use Case 4), so shorter sessions are saved with 0 points.
+
+**Timer Flow (data flow and state changes):**
+1. The seated user presses *Start*. The client sends `timer:start`; the server calls `StudyTimer.startTimer()` and the state changes from `IdleState` to `RunningState`. The avatar status changes from AVAILABLE to STUDYING.
+2. **Manual pause (FR-6):** the client sends `timer:pause`; the state changes to `PausedState`. `timer:resume` changes it back to `RunningState`.
+3. **Automatic pause (FR-7):** when the browser tab is hidden or minimized, the client sends `timer:autoPause`. The state changes to `PausedState`, `pausedCount` increases by 1, and the avatar status shown to other users changes to IDLE (PAUSED). When the tab becomes visible again, the client sends `timer:resume` and the timer continues without a user action. Only automatic pauses resume on their own; a timer that the user paused manually stays paused until the user presses *Resume*.
+4. After every change the server sends `timer:state` (current state and elapsed time) to the client. The same event is sent after a reconnect, so the timer is restored (FR-15).
+5. **Finish:** the user can finish from the running or the paused state. The client sends `timer:finish`. The server calls `StudyTimer.finishTimer()`, computes the active duration with `getActiveDuration()` (elapsed time minus paused time), saves the session, and calls `PointService.awardPoints(user, session)` (Use Case 4). The result is returned with `session:result`.
+6. After the session is finished, the server releases the user's seat and pushes the updated `room:state` to all clients (Use Case 1).
+
+The server keeps the authoritative timer state; the client only sends control events and never a duration (NFR-2, risk R4). Calls that are not legal in the current state (for example `start` while running, or `pause` while paused) are handled by the state object and do not change the timer.
+
+**Timer State Diagram:**
+
+
+
 
 ### 3.3 Use Case 3: Buy Items in Virtual Store
 
