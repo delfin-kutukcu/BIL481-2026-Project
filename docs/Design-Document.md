@@ -1,12 +1,15 @@
 # Design Document
 
+**Version 1.2 · 19/11/2026**
+
 ## Table of Contents
 1. [Task Matrix](#task-matrix-design-document)
 2. [Contributors](#contributors)
-3. [1. System Overview](#1-system-overview)
-4. [2. Implementation Details](#2-implementation-details)
-5. [3. Use Case Support in Design](#3-use-case-support-in-design)
-6. [4. Design Decisions](#4-design-decisions)
+3. [Change Record](#change-record)
+4. [1. System Overview](#1-system-overview)
+5. [2. Implementation Details](#2-implementation-details)
+6. [3. Use Case Support in Design](#3-use-case-support-in-design)
+7. [4. Design Decisions](#4-design-decisions)
 
 ## Task Matrix (Design Document)
 
@@ -28,6 +31,14 @@
 * Çınar Aktaş
 
 ---
+
+## Change Record
+
+| Version | Date | Updated Section | Description of Changes | Updated By |
+| :--- | :--- | :--- | :--- | :--- |
+| 1.0 | 15/11/2026 | Initial Document | Initial approved version (PA2) | All members |
+| 1.1 | 18/11/2026 | Section 3.2 | UC2 state diagram clarified: only automatic pauses increase pausedCount (FR-7) | Işıkalp Karakaş |
+| 1.2 | 19/11/2026 | Sections 3.1, 3.2 | UC1 and UC2 sequence diagrams added | Işıkalp Karakaş |
 
 ## 1. System Overview
 
@@ -252,6 +263,10 @@ In this design, `LibraryRoom` acts as the Concrete Subject. It maintains a dynam
 
 **State changes:** a seat changes between *empty* and *occupied*; the room's user list changes on join and leave. The status of a seated avatar follows the study timer (Use Case 2): AVAILABLE while the timer is idle, STUDYING while it is running, and IDLE (PAUSED) while it is paused. Every change is followed by one `room:state` push, so all clients show the same room without polling.
 
+**UML Sequence Diagram:**
+
+<img src="images/uc1_sequence.png" alt="Use Case 1 sequence diagram" width="450">
+
 ### 3.2 Use Case 2: Manage Study Timer
 
 **Requirement Mapping:** 
@@ -275,6 +290,10 @@ By implementing the State Pattern, we avoid fragile and monolithic if-else condi
 6. After the session is finished, the server releases the user's seat and pushes the updated `room:state` to all clients (Use Case 1).
 
 The server keeps the authoritative timer state; the client only sends control events and never a duration (NFR-2, risk R4). Calls that are not legal in the current state (for example `start` while running, or `pause` while paused) are handled by the state object and do not change the timer.
+
+**UML Sequence Diagram:**
+
+<img src="images/uc2_sequence.png" alt="Use Case 2 sequence diagram" width="550">
 
 **Timer State Diagram:**
 
