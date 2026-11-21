@@ -21,4 +21,9 @@ export class Inventory {
   owns(itemId: number): boolean {
     return this.items.some((item) => item.getId() === itemId);
   }
+
+  /** The owned items in the order they were added. Changing the returned list does not change the inventory. */
+  getItems(): StoreItem[] {
+    return [...this.items];
+  }
 }
