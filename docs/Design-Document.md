@@ -1,6 +1,6 @@
 # Design Document
 
-**Version 1.2 · 19/11/2026**
+**Version 1.3 · 21/11/2026**
 
 ## Table of Contents
 1. [Task Matrix](#task-matrix-design-document)
@@ -39,6 +39,7 @@
 | 1.0 | 15/11/2026 | Initial Document | Initial approved version (PA2) | All members |
 | 1.1 | 18/11/2026 | Section 3.2 | UC2 state diagram clarified: only automatic pauses increase pausedCount (FR-7) | Işıkalp Karakaş |
 | 1.2 | 19/11/2026 | Sections 3.1, 3.2 | UC1 and UC2 sequence diagrams added | Işıkalp Karakaş |
+| 1.3 | 21/11/2026 | Sections 2.3, 3.3 | UC3 class diagram and store interfaces updated to the implemented code: store repository, asynchronous `listItems()` and `buyItem()`, new `listInventory()` and `Inventory.getItems()`, numeric ids, `canPurchase()` result | Işıkalp Karakaş |
 
 ## 1. System Overview
 
@@ -119,7 +120,7 @@ The server follows a **layered architecture**: routes and socket handlers (prese
 
 ### 2.3 Component Interfaces
 
-**Class and method signatures.** The points module and the models are taken from the implemented code in `server/src/`; the other modules follow the UML diagrams in Section 3.
+**Class and method signatures.** The points module, the models, and the store module are taken from the implemented code in `server/src/`; the other modules follow the UML diagrams in Section 3.
 
 ```ts
 // ---- Implemented: server/src/points and server/src/models (UC4) ----
@@ -141,21 +142,35 @@ class User {
   addPoints(amount: number): void;      // increases points and lifetimePoints
   deductPoints(cost: number): void;     // decreases points only; throws if not enough points
   getPoints(): number;  getLifetimePoints(): number;  getTier(): number;
+  getInventory(): Inventory;            // the items the user owns (UC3)
 }
 class StudySession {                    // userId, sessionId, activeDurationSec, date, pausedCount, pointsEarned
   getActiveMinutes(): number;           // whole minutes, rounded down
 }
 
-// ---- Planned: follows the UML diagrams in Section 3 ----
-// UC3 - Factory
+// ---- Implemented: server/src/store and server/src/db (UC3 - Factory) ----
 interface StoreItem { getId(): number; getName(): string; getCost(): number; getTier(): number; }
 class ItemFactory   { createItem(type: string, data: ItemData): StoreItem; }
+// implementations: FurnitureItem (getGridSize()), ClothingItem (getSlot())
+class Inventory     { add(item: StoreItem): void; owns(itemId: number): boolean; getItems(): StoreItem[]; }
 class StoreService  {
-  listItems(): StoreItem[];
-  buyItem(userId: number, itemId: number): PurchaseResult;
+  constructor(repository: StoreRepository, factory?: ItemFactory);
+  listItems(): Promise<StoreItem[]>;
+  listInventory(userId: number): Promise<StoreItem[]>;
+  buyItem(userId: number, itemId: number): Promise<PurchaseResult>;  // one database transaction
+  canPurchase(user: User, item: StoreItem): PurchaseCheck;           // owned, then tier, then points
 }
-// implementations: FurnitureItem, ClothingItem
+type PurchaseCheck  = { allowed: true }
+                    | { allowed: false; reason: 'ALREADY_OWNED' | 'TIER_LOCKED' | 'NOT_ENOUGH_POINTS' };
+type PurchaseResult = { success: true; newBalance: number; inventory: StoreItem[] }
+                    | { success: false; reason: 'ALREADY_OWNED' | 'TIER_LOCKED' | 'NOT_ENOUGH_POINTS' | 'ITEM_NOT_FOUND' };
+interface StoreRepository {             // implementation: PgStoreRepository (PostgreSQL)
+  findAllItems(): Promise<ItemRecord[]>;
+  findOwnedItems(userId: number): Promise<ItemRecord[]>;
+  inTransaction<T>(work: (tx: PurchaseTransaction) => Promise<T>): Promise<T>;
+}
 
+// ---- Planned: follows the UML diagrams in Section 3 ----
 // UC2 - State
 interface TimerState { start(t: StudyTimer): void; pause(t: StudyTimer): void; resume(t: StudyTimer): void; finish(t: StudyTimer): void; }
 class StudyTimer {
@@ -307,7 +322,7 @@ This use case directly supports **FR-10** (browse the store and buy an item whos
 
 **UML Class Diagram:**
 
-<img src="images/uc3_UML.png" alt="Use Case 3 Factory Pattern UML" width="600">
+<img src="images/uc3_UML.png" alt="Use Case 3 Factory Pattern UML" width="900">
 
 **Design Pattern & Justification: Factory Pattern**
 The virtual store sells two kinds of products, furniture and clothing. They share a name, a cost, and a tier, but they differ in their own data: furniture has a size on the apartment grid, and clothing has an avatar slot. If the store code created these objects directly with `new FurnitureItem(...)` and `new ClothingItem(...)`, every new product type would force changes in the purchase logic.
@@ -317,14 +332,14 @@ We therefore selected the **Factory Pattern**. All products implement the common
 **Purchase Flow (data flow and state changes):**
 1. The user opens the store. `StoreService.listItems()` loads item records, and `ItemFactory` turns each record into a `StoreItem` (name, cost, tier).
 2. The user selects an item and presses *Buy*. The client sends `POST /api/store/buy` with `{ itemId }`. The user is identified by the authenticated session.
-3. `StoreService.buyItem(userId, itemId)` checks three conditions in `canPurchase()`:
-   - the item exists and is not already owned (`Inventory.owns()`),
+3. `StoreService.buyItem(userId, itemId)` loads the user with the owned items and the item (an unknown item id is rejected), then checks three conditions in `canPurchase()`:
+   - the item is not already owned (`Inventory.owns()`),
    - the item tier is not higher than the user's tier (`User.getTier()`, based on lifetime points, FR-9),
    - the user has enough points (`points >= cost`).
 4. **Success:** `User.deductPoints(cost)` lowers the balance, `Inventory.add(item)` stores the item, and the server returns the new balance and inventory.
-5. **Failure:** the server returns an error message (tier locked or not enough points). Points and inventory do not change.
+5. **Failure:** the server returns the reason (already owned, tier locked, not enough points, or unknown item). Points and inventory do not change.
 
-The purchase runs as a single database transaction, so the point deduction and the inventory update happen together or not at all. The user's lifetime points do not change when buying, so the tier never drops after a purchase.
+The purchase runs as a single database transaction, so the point deduction and the inventory update happen together or not at all. The user's row is locked during the transaction, so two purchases of the same user run one after the other and cannot buy an item twice or make the balance negative (NFR-3). The user's lifetime points do not change when buying, so the tier never drops after a purchase.
 
 **Example (from FR-10 verification):** A user with 500 points buys a 300-point Tier-2 desk and has 200 points left. With 100 points, the same purchase is rejected and nothing changes.
 
