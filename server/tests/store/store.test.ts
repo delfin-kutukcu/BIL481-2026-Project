@@ -5,9 +5,11 @@ import { Inventory } from '../../src/store/Inventory';
 import { ItemFactory } from '../../src/store/ItemFactory';
 import { StoreItem } from '../../src/store/StoreItem';
 import { StoreService } from '../../src/store/StoreService';
+import { FakeStoreRepository } from './FakeStoreRepository';
 
 const factory = new ItemFactory();
-const service = new StoreService();
+// canPurchase() does not use the database; the fake repository only satisfies the constructor.
+const service = new StoreService(new FakeStoreRepository());
 
 // Name, cost, tier, and size as in src/db/seed.sql (store wireframe).
 const lamp = factory.createItem('furniture', { id: 1, name: 'Floor lamp', cost: 80, tier: 1, gridWidth: 1, gridHeight: 1 });
@@ -70,6 +72,15 @@ describe('Inventory (FR-10)', () => {
   test('the same item cannot be added twice', () => {
     const inventory = new Inventory([lamp]);
     expect(() => inventory.add(lamp)).toThrow('already owned');
+  });
+
+  test('getItems() lists the owned items in order and cannot change the inventory', () => {
+    const inventory = new Inventory([lamp, desk]);
+    const items = inventory.getItems();
+    expect(items.map((item) => item.getName())).toEqual(['Floor lamp', 'Wooden desk']);
+
+    items.pop();
+    expect(inventory.getItems()).toHaveLength(2);
   });
 });
 
