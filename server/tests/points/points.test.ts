@@ -28,6 +28,39 @@ describe('StandardPointStrategy (FR-8)', () => {
   });
 });
 
+describe('QA Plan TC-04: 15-minute threshold and rounding through PointService (FR-6, FR-8, FR-16)', () => {
+  const service = new PointService(); // StandardPointStrategy by default
+
+  test('case 1: 14 min 59 s is rounded down to 14 minutes, so 0 points; the session keeps pointsEarned = 0', () => {
+    const user = new User(1);
+    const s = session(14, 59);
+
+    expect(s.getActiveMinutes()).toBe(14);
+    expect(service.awardPoints(user, s).earnedPoints).toBe(0);
+    expect(s.pointsEarned).toBe(0);
+    expect(user.getPoints()).toBe(0);
+    expect(user.getLifetimePoints()).toBe(0);
+  });
+
+  test('case 2: 27 min 45 s is rounded down to 27 minutes, so 135 points; points and lifetime points both increase by 135', () => {
+    const user = new User(1, 40, 60);
+    const s = session(27, 45);
+
+    expect(s.getActiveMinutes()).toBe(27);
+    expect(service.awardPoints(user, s).earnedPoints).toBe(135);
+    expect(s.pointsEarned).toBe(135);
+    expect(user.getPoints()).toBe(40 + 135);
+    expect(user.getLifetimePoints()).toBe(60 + 135);
+  });
+
+  test('case 3: exactly 30 minutes gives 150 points (FR-8 verification)', () => {
+    const user = new User(1);
+
+    expect(service.awardPoints(user, session(30)).earnedPoints).toBe(150);
+    expect(user.getPoints()).toBe(150);
+  });
+});
+
 describe('TierPolicy (FR-9)', () => {
   const policy = new TierPolicy();
 
